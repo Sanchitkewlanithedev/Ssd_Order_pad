@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order Pad</title>
+<style>
+  :root {
+    --paper: #F6F1E7;
+    --paper-line: #DDD3C0;
+    --ink: #232323;
+    --ink-soft: #6b6459;
+    --carbon: #C85C74;
+    --carbon-soft: #F3DCE1;
+    --stamp: #3F6C51;
+    --stamp-soft: #DCE9DE;
+    --card: #FFFDF9;
+    --shadow: rgba(35,30,20,0.12);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1E1B17;
+      --paper-line: #3A3530;
+      --ink: #EFE9DF;
+      --ink-soft: #A79E90;
+      --carbon: #E27E93;
+      --carbon-soft: #3A2429;
+      --stamp: #7FB893;
+      --stamp-soft: #223229;
+      --card: #26221D;
+      --shadow: rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1E1B17;
+    --paper-line: #3A3530;
+    --ink: #EFE9DF;
+    --ink-soft: #A79E90;
+    --carbon: #E27E93;
+    --carbon-soft: #3A2429;
+    --stamp: #7FB893;
+    --stamp-soft: #223229;
+    --card: #26221D;
+    --shadow: rgba(0,0,0,0.4);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--paper);
+    background-image: repeating-linear-gradient(
+      var(--paper) 0px, var(--paper) 33px, var(--paper-line) 34px
+    );
+    color: var(--ink);
+    font-family: 'Iowan Old Style', 'Georgia', serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 18px 48px;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  h1 span { color: var(--carbon); }
+  .tab-toggle {
+    display: flex;
+    gap: 6px;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 0.72rem;
+  }
+  .tab-toggle button {
+    background: none;
+    border: 1px solid var(--paper-line);
+    color: var(--ink-soft);
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .tab-toggle button.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 2px 10px var(--shadow);
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  input[type="text"], input[type="number"], select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 10px 11px;
+    border: 1.5px solid var(--paper-line);
+    border-radius: 7px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  select { appearance: none; -webkit-appearance: none; }
+  select:disabled { opacity: 0.55; }
+  input:focus, select:focus { outline: 2px solid var(--carbon); outline-offset: 1px; }
+
+  .add-row {
+    display: grid;
+    grid-template-columns: 1fr 72px auto;
+    gap: 8px;
+    align-items: end;
+  }
+  .add-row button {
+    background: var(--carbon);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    font-size: 1.4rem;
+    line-height: 1;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+  }
+  .add-row button:active { transform: scale(0.96); }
+
+  .items { margin-top: 14px; }
+  .item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--paper-line);
+    gap: 10px;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-name { flex: 1; font-size: 0.98rem; }
+  .item-qty {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    background: var(--stamp-soft);
+    color: var(--stamp);
+    padding: 3px 9px;
+    border-radius: 20px;
+    min-width: 44px;
+    text-align: center;
+  }
+  .item-del {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    padding: 18px 0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--stamp); color: #fff; }
+  .btn-secondary { background: none; border: 1.5px solid var(--paper-line); color: var(--ink); }
+  .btn:disabled { opacity: 0.4; }
+
+  .hist-entry {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 10px var(--shadow);
+  }
+  .hist-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .hist-cust { font-weight: 700; font-size: 1.05rem; }
+  .hist-date { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--ink-soft); }
+  .hist-items { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 10px; line-height: 1.5; }
+  .hist-actions { display: flex; gap: 8px; }
+  .chip-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    color: var(--ink);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 10;
+  }
+  .toast.show { opacity: 1; }
+
+  .price-note {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Order<span>Pad</span></h1>
+    <div class="tab-toggle">
+      <button id="tabNew" class="active">New</button>
+      <button id="tabHist">History</button>
+    </div>
+  </header>
+
+  <div id="viewNew">
+    <div class="card">
+      <label for="areaSelect">Area</label>
+      <select id="areaSelect">
+        <option value="">Select area</option>
+        <option value="__add__">+ Add new area</option>
+      </select>
+      <div id="newAreaRow" style="display:none; gap:8px; margin-top:8px;">
+        <input type="text" id="newAreaInput" placeholder="New area name" autocomplete="off">
+        <button id="newAreaAdd" class="chip-btn" style="white-space:nowrap;">Add</button>
+      </div>
+      <div id="areaDeleteRow" style="display:none; margin-top:8px;">
+        <a href="#" id="areaDeleteLink" style="color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; font-size:0.68rem;">Delete this area</a>
+      </div>
+      <div id="areaDeleteConfirm" style="display:none; margin-top:8px; font-size:0.85rem;"></div>
+
+      <div style="height:14px;"></div>
+
+      <label for="shopSelect">Shop</label>
+      <select id="shopSelect" disabled>
+        <option value="">Select area first</option>
+      </select>
+      <div id="newShopRow" style="display:none; flex-direction:column; gap:8px; margin-top:8px;">
+        <input type="text" id="newShopInput" placeholder="New shop name" autocomplete="off">
+        <input type="tel" id="newShopPhone" placeholder="Owner phone (optional)" autocomplete="off">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" id="newShopLocationBtn" class="chip-btn" style="white-space:nowrap;">📍 Use current location</button>
+          <span id="newShopLocationStatus" style="font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--stamp);"></span>
+        </div>
+        <button id="newShopAdd" class="chip-btn" style="white-space:nowrap;">Add</button>
+      </div>
+      <div id="shopPhoneDisplay" class="price-note" style="display:none; margin-top:8px; text-align:left;"></div>
+      <div id="shopLocationDisplay" class="price-note" style="display:none; margin-top:8px; text-align:left;"></div>
+      <div id="shopDeleteRow" style="display:none; margin-top:8px;">
+        <a href="#" id="shopDeleteLink" style="color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; font-size:0.68rem;">Delete this shop</a>
+      </div>
+      <div id="shopDeleteConfirm" style="display:none; margin-top:8px; font-size:0.85rem;"></div>
+    </div>
+
+    <div class="card">
+      <label for="prodInput">Add item</label>
+      <div class="add-row">
+        <input type="text" id="prodInput" placeholder="Product name" autocomplete="off">
+        <input type="number" id="qtyInput" placeholder="Qty" min="1" value="1">
+        <button id="addBtn" aria-label="Add item">+</button>
+      </div>
+
+      <div class="items" id="itemsList">
+        <div class="empty">No items yet — add the first one above</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="clearBtn">Clear</button>
+      <button class="btn btn-primary" id="saveBtn" disabled>Save &amp; send</button>
+    </div>
+    <div id="waFallback" style="display:none; text-align:center; margin-top:10px;">
+      <a id="waFallbackLink" href="#" target="_blank" rel="noopener noreferrer" class="chip-btn" style="text-decoration:none; display:inline-block;">Tap here to open WhatsApp</a>
+    </div>
+  </div>
+
+  <div id="viewHist" style="display:none;">
+    <div id="histList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyBg_191SVqa0f5guYvBV1zyFm4-MUTHmSE",
+    authDomain: "order-pad-e290b.firebaseapp.com",
+    projectId: "order-pad-e290b",
+    storageBucket: "order-pad-e290b.firebasestorage.app",
+    messagingSenderId: "71306737177",
+    appId: "1:71306737177:web:e52e3b42fd3d813f681c88"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const directoryDocRef = db.collection('orderpad').doc('directory');
+  const ordersDocRef = db.collection('orderpad').doc('orders');
+
+  const WHATSAPP_NUMBER = '919506136012';
+  let currentItems = [];
+  let directory = {};
+  let ordersCache = [];
+  let directoryReady = false;
+  let ordersReady = false;
+
+  function migrateDirectory(dir) {
+    const out = dir || {};
+    Object.keys(out).forEach(area => {
+      out[area] = (out[area] || []).map(s => (typeof s === 'string' ? { name: s, phone: '' } : s));
+    });
+    return out;
+  }
+
+  function saveDirectory(dir) {
+    directoryDocRef.set({ data: dir }).catch(() => {
+      showToast('Could not sync — check your connection');
+    });
+  }
+
+  function addAreaIfMissing(area) {
+    if (!area) return;
+    if (!directory[area]) {
+      directory[area] = [];
+      saveDirectory(directory);
+    }
+  }
+  function findShop(area, shopName) {
+    if (!area || !directory[area]) return null;
+    return directory[area].find(s => s.name.toLowerCase() === shopName.toLowerCase()) || null;
+  }
+  function addShopIfMissing(area, shop, phone, location) {
+    if (!area || !shop) return;
+    addAreaIfMissing(area);
+    const existing = findShop(area, shop);
+    if (!existing) {
+      directory[area].push({ name: shop, phone: phone ? phone.trim() : '', location: location ? location.trim() : '' });
+      saveDirectory(directory);
+    } else {
+      let changed = false;
+      if (phone && phone.trim() && !existing.phone) { existing.phone = phone.trim(); changed = true; }
+      if (location && location.trim() && !existing.location) { existing.location = location.trim(); changed = true; }
+      if (changed) saveDirectory(directory);
+    }
+  }
+
+  function sendToWhatsApp(text) {
+    const url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(text);
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    const fallback = document.getElementById('waFallback');
+    const fallbackLink = document.getElementById('waFallbackLink');
+    if (fallback && fallbackLink) {
+      fallbackLink.href = url;
+      fallback.style.display = 'block';
+    }
+  }
+
+  const areaSelect = document.getElementById('areaSelect');
+  const shopSelect = document.getElementById('shopSelect');
+  const newAreaRow = document.getElementById('newAreaRow');
+  const newAreaInput = document.getElementById('newAreaInput');
+  const newAreaAdd = document.getElementById('newAreaAdd');
+  const newShopRow = document.getElementById('newShopRow');
+  const newShopInput = document.getElementById('newShopInput');
+  const newShopPhone = document.getElementById('newShopPhone');
+  const newShopLocationBtn = document.getElementById('newShopLocationBtn');
+  const newShopLocationStatus = document.getElementById('newShopLocationStatus');
+  const newShopAdd = document.getElementById('newShopAdd');
+  let newShopLocationValue = '';
+
+  function captureLocation(onStatus, onDone) {
+    if (!navigator.geolocation) {
+      onStatus('Location not supported here');
+      return;
+    }
+    onStatus('Getting location…');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        const url = `https://www.google.com/maps?q=${lat},${lng}`;
+        onStatus('Location captured ✓');
+        onDone(url);
+      },
+      err => {
+        onStatus('Could not get location — check permission');
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }
+
+  newShopLocationBtn.addEventListener('click', () => {
+    captureLocation(
+      (msg) => { newShopLocationStatus.textContent = msg; },
+      (url) => { newShopLocationValue = url; }
+    );
+  });
+  const areaDeleteRow = document.getElementById('areaDeleteRow');
+  const areaDeleteLink = document.getElementById('areaDeleteLink');
+  const areaDeleteConfirm = document.getElementById('areaDeleteConfirm');
+  const shopDeleteRow = document.getElementById('shopDeleteRow');
+  const shopDeleteLink = document.getElementById('shopDeleteLink');
+  const shopDeleteConfirm = document.getElementById('shopDeleteConfirm');
+
+  function populateAreaSelect(selected) {
+    const areas = Object.keys(directory).sort((a, b) => a.localeCompare(b));
+    areaSelect.innerHTML = '<option value="">Select area</option>' +
+      areas.map(a => `<option value="${escapeAttr(a)}">${escapeHtml(a)}</option>`).join('') +
+      '<option value="__add__">+ Add new area</option>';
+    const isReal = selected && directory[selected] !== undefined;
+    areaSelect.value = isReal ? selected : '';
+    areaDeleteRow.style.display = isReal ? 'block' : 'none';
+    areaDeleteConfirm.style.display = 'none';
+  }
+
+  function populateShopSelect(area, selected) {
+    if (!area || directory[area] === undefined) {
+      shopSelect.innerHTML = '<option value="">Select area first</option>';
+      shopSelect.disabled = true;
+      updateShopPhoneDisplay(null);
+      updateShopLocationDisplay(null);
+      shopDeleteRow.style.display = 'none';
+      shopDeleteConfirm.style.display = 'none';
+      return;
+    }
+    const shops = directory[area].slice().sort((a, b) => a.name.localeCompare(b.name));
+    shopSelect.disabled = false;
+    shopSelect.innerHTML = '<option value="">Select shop</option>' +
+      shops.map(s => `<option value="${escapeAttr(s.name)}">${escapeHtml(s.name)}</option>`).join('') +
+      '<option value="__add__">+ Add new shop</option>';
+    const match = shops.find(s => s.name === selected);
+    shopSelect.value = match ? match.name : '';
+    updateShopPhoneDisplay(match || null);
+    updateShopLocationDisplay(match || null);
+    shopDeleteRow.style.display = match ? 'block' : 'none';
+    shopDeleteConfirm.style.display = 'none';
+  }
+
+  function updateShopPhoneDisplay(shop) {
+    const display = document.getElementById('shopPhoneDisplay');
+    if (!shop) { display.style.display = 'none'; display.innerHTML = ''; return; }
+    renderPhoneView(display, shop);
+  }
+
+  function renderPhoneView(display, shop) {
+    display.style.display = 'block';
+    if (shop.phone) {
+      display.innerHTML = `Owner phone: ${escapeHtml(shop.phone)} · <a href="#" id="editShopPhoneLink" style="color:var(--carbon);">edit</a>`;
+    } else {
+      display.innerHTML = `<a href="#" id="editShopPhoneLink" style="color:var(--carbon);">+ Add owner phone</a>`;
+    }
+    const link = document.getElementById('editShopPhoneLink');
+    if (link) {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        renderPhoneEdit(display, shop);
+      });
+    }
+  }
+
+  function renderPhoneEdit(display, shop) {
+    display.innerHTML = `
+      <div style="display:flex; gap:6px; align-items:center;">
+        <input type="tel" id="editPhoneInput" value="${escapeAttr(shop.phone || '')}" placeholder="Owner phone" style="flex:1; padding:7px 9px; font-size:0.85rem;">
+        <button id="savePhoneBtn" class="chip-btn">Save</button>
+      </div>`;
+    const input = document.getElementById('editPhoneInput');
+    const saveBtnEl = document.getElementById('savePhoneBtn');
+    input.focus();
+    function commit() {
+      const val = input.value.trim();
+      const current = findShop(areaSelect.value, shop.name);
+      if (current) {
+        current.phone = val;
+        saveDirectory(directory);
+        renderPhoneView(display, current);
+      }
+    }
+    saveBtnEl.addEventListener('click', commit);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
+  }
+
+  function updateShopLocationDisplay(shop) {
+    const display = document.getElementById('shopLocationDisplay');
+    if (!shop) { display.style.display = 'none'; display.innerHTML = ''; return; }
+    renderLocationView(display, shop);
+  }
+
+  function renderLocationView(display, shop) {
+    display.style.display = 'block';
+    if (shop.location) {
+      display.innerHTML = `📍 <a href="${escapeAttr(shop.location)}" target="_blank" rel="noopener noreferrer" style="color:var(--stamp);">View on map</a> · <a href="#" id="editShopLocLink" style="color:var(--carbon);">update</a>`;
+    } else {
+      display.innerHTML = `<a href="#" id="captureShopLocLink" style="color:var(--carbon);">📍 Use current location</a> · <a href="#" id="editShopLocLink" style="color:var(--carbon);">paste link</a>`;
+    }
+    const captureLink = document.getElementById('captureShopLocLink');
+    if (captureLink) {
+      captureLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const original = captureLink.textContent;
+        captureLocation(
+          (msg) => { captureLink.textContent = msg; },
+          (url) => {
+            const current = findShop(areaSelect.value, shop.name);
+            if (current) {
+              current.location = url;
+              saveDirectory(directory);
+              renderLocationView(display, current);
+            }
+          }
+        );
+      });
+    }
+    const editLink = document.getElementById('editShopLocLink');
+    if (editLink) {
+      editLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        renderLocationEdit(display, shop);
+      });
+    }
+  }
+
+  function renderLocationEdit(display, shop) {
+    display.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button type="button" id="captureLocBtn2" class="chip-btn">📍 Use current location</button>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="text" id="editLocInput" value="${escapeAttr(shop.location || '')}" placeholder="Paste Google Maps link" style="flex:1; padding:7px 9px; font-size:0.85rem;">
+          <button id="saveLocBtn" class="chip-btn">Save</button>
+        </div>
+      </div>`;
+    const input = document.getElementById('editLocInput');
+    const saveBtnEl = document.getElementById('saveLocBtn');
+    const captureBtn2 = document.getElementById('captureLocBtn2');
+    function commit(val) {
+      const current = findShop(areaSelect.value, shop.name);
+      if (current) {
+        current.location = val.trim();
+        saveDirectory(directory);
+        renderLocationView(display, current);
+      }
+    }
+    saveBtnEl.addEventListener('click', () => commit(input.value));
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(input.value); } });
+    captureBtn2.addEventListener('click', () => {
+      const original = captureBtn2.textContent;
+      captureLocation(
+        (msg) => { captureBtn2.textContent = msg; },
+        (url) => { commit(url); }
+      );
+    });
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  }
+
+  areaSelect.addEventListener('change', () => {
+    if (areaSelect.value === '__add__') {
+      newAreaRow.style.display = 'flex';
+      newAreaInput.value = '';
+      newAreaInput.focus();
+      areaSelect.value = '';
+      areaDeleteRow.style.display = 'none';
+      areaDeleteConfirm.style.display = 'none';
+      populateShopSelect('', '');
+    } else {
+      newAreaRow.style.display = 'none';
+      areaDeleteRow.style.display = areaSelect.value ? 'block' : 'none';
+      areaDeleteConfirm.style.display = 'none';
+      populateShopSelect(areaSelect.value, '');
+    }
+    updateSaveState();
+  });
+
+  newAreaAdd.addEventListener('click', () => {
+    const name = newAreaInput.value.trim();
+    if (!name) { newAreaInput.focus(); return; }
+    addAreaIfMissing(name);
+    populateAreaSelect(name);
+    populateShopSelect(name, '');
+    newAreaRow.style.display = 'none';
+    newAreaInput.value = '';
+    updateSaveState();
+  });
+  newAreaInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); newAreaAdd.click(); } });
+
+  shopSelect.addEventListener('change', () => {
+    if (shopSelect.value === '__add__') {
+      newShopRow.style.display = 'flex';
+      newShopInput.value = '';
+      newShopPhone.value = '';
+      newShopLocationValue = '';
+      newShopLocationStatus.textContent = '';
+      newShopInput.focus();
+      shopSelect.value = '';
+      updateShopPhoneDisplay(null);
+      updateShopLocationDisplay(null);
+      shopDeleteRow.style.display = 'none';
+      shopDeleteConfirm.style.display = 'none';
+    } else {
+      newShopRow.style.display = 'none';
+      const match = findShop(areaSelect.value, shopSelect.value);
+      updateShopPhoneDisplay(match);
+      updateShopLocationDisplay(match);
+      shopDeleteRow.style.display = match ? 'block' : 'none';
+      shopDeleteConfirm.style.display = 'none';
+    }
+    updateSaveState();
+  });
+
+  newShopAdd.addEventListener('click', () => {
+    const name = newShopInput.value.trim();
+    const phone = newShopPhone.value.trim();
+    const area = areaSelect.value;
+    if (!name || !area) { newShopInput.focus(); return; }
+    addShopIfMissing(area, name, phone, newShopLocationValue);
+    populateShopSelect(area, name);
+    newShopRow.style.display = 'none';
+    newShopInput.value = '';
+    newShopPhone.value = '';
+    newShopLocationValue = '';
+    newShopLocationStatus.textContent = '';
+    updateSaveState();
+  });
+  newShopInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); newShopPhone.focus(); } });
+
+  areaDeleteLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    const area = areaSelect.value;
+    if (!area) return;
+    const shopCount = (directory[area] || []).length;
+    areaDeleteConfirm.style.display = 'block';
+    areaDeleteConfirm.innerHTML = `
+      <div style="color:var(--ink-soft);">Delete "${escapeHtml(area)}"${shopCount ? ' and its ' + shopCount + ' shop(s)' : ''}? Past orders keep their own record.</div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button id="areaDeleteYes" class="chip-btn" style="color:var(--carbon);">Yes, delete</button>
+        <button id="areaDeleteNo" class="chip-btn">Cancel</button>
+      </div>`;
+    document.getElementById('areaDeleteYes').addEventListener('click', () => {
+      delete directory[area];
+      saveDirectory(directory);
+      populateAreaSelect('');
+      populateShopSelect('', '');
+      updateSaveState();
+    });
+    document.getElementById('areaDeleteNo').addEventListener('click', () => {
+      areaDeleteConfirm.style.display = 'none';
+    });
+  });
+
+  shopDeleteLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    const area = areaSelect.value;
+    const shop = shopSelect.value;
+    if (!area || !shop) return;
+    shopDeleteConfirm.style.display = 'block';
+    shopDeleteConfirm.innerHTML = `
+      <div style="color:var(--ink-soft);">Delete "${escapeHtml(shop)}"? Past orders keep their own record.</div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button id="shopDeleteYes" class="chip-btn" style="color:var(--carbon);">Yes, delete</button>
+        <button id="shopDeleteNo" class="chip-btn">Cancel</button>
+      </div>`;
+    document.getElementById('shopDeleteYes').addEventListener('click', () => {
+      directory[area] = (directory[area] || []).filter(s => s.name !== shop);
+      saveDirectory(directory);
+      populateShopSelect(area, '');
+      updateSaveState();
+    });
+    document.getElementById('shopDeleteNo').addEventListener('click', () => {
+      shopDeleteConfirm.style.display = 'none';
+    });
+  });
+  newShopPhone.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); newShopAdd.click(); } });
+
+  function updateSaveState() {
+    const area = areaSelect.value;
+    const shop = shopSelect.value;
+    saveBtn.disabled = !(area && area !== '__add__' && shop && shop !== '__add__' && currentItems.length > 0);
+  }
+
+  directoryDocRef.onSnapshot(doc => {
+    directory = migrateDirectory(doc.exists ? doc.data().data : {});
+    directoryReady = true;
+    const keepArea = areaSelect.value && areaSelect.value !== '__add__' ? areaSelect.value : '';
+    const keepShop = shopSelect.value && shopSelect.value !== '__add__' ? shopSelect.value : '';
+    populateAreaSelect(keepArea);
+    populateShopSelect(keepArea, keepShop);
+  }, () => {
+    showToast('Could not load shop list — check your connection');
+  });
+
+  ordersDocRef.onSnapshot(doc => {
+    ordersCache = doc.exists ? (doc.data().data || []) : [];
+    ordersReady = true;
+    if (viewHist.style.display !== 'none') renderHistory();
+  }, () => {
+    showToast('Could not load order history — check your connection');
+  });
+  const prodInput = document.getElementById('prodInput');
+  const qtyInput = document.getElementById('qtyInput');
+  const addBtn = document.getElementById('addBtn');
+  const itemsList = document.getElementById('itemsList');
+  const saveBtn = document.getElementById('saveBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const tabNew = document.getElementById('tabNew');
+  const tabHist = document.getElementById('tabHist');
+  const viewNew = document.getElementById('viewNew');
+  const viewHist = document.getElementById('viewHist');
+  const histList = document.getElementById('histList');
+  const toast = document.getElementById('toast');
+
+  function loadOrders() {
+    return ordersCache.slice();
+  }
+  function saveOrders(orders) {
+    ordersDocRef.set({ data: orders }).catch(() => {
+      showToast('Could not sync — check your connection');
+    });
+  }
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+
+  function renderItems() {
+    if (currentItems.length === 0) {
+      itemsList.innerHTML = '<div class="empty">No items yet — add the first one above</div>';
+      updateSaveState();
+      return;
+    }
+    updateSaveState();
+    itemsList.innerHTML = currentItems.map((it, idx) => `
+      <div class="item-row">
+        <div class="item-name">${escapeHtml(it.name)}</div>
+        <div class="item-qty">${it.qty}</div>
+        <button class="item-del" data-idx="${idx}" aria-label="Remove">✕</button>
+      </div>
+    `).join('');
+    itemsList.querySelectorAll('.item-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentItems.splice(parseInt(btn.dataset.idx, 10), 1);
+        renderItems();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function addItem() {
+    const name = prodInput.value.trim();
+    const qty = parseInt(qtyInput.value, 10) || 1;
+    if (!name) { prodInput.focus(); return; }
+    const existing = currentItems.find(it => it.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      currentItems.push({ name, qty });
+    }
+    prodInput.value = '';
+    qtyInput.value = '1';
+    prodInput.focus();
+    renderItems();
+  }
+
+  addBtn.addEventListener('click', addItem);
+  prodInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); qtyInput.focus(); } });
+  qtyInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } });
+
+  clearBtn.addEventListener('click', () => {
+    currentItems = [];
+    populateAreaSelect('');
+    populateShopSelect('', '');
+    newAreaRow.style.display = 'none';
+    newShopRow.style.display = 'none';
+    renderItems();
+    const fallback = document.getElementById('waFallback');
+    if (fallback) fallback.style.display = 'none';
+  });
+
+  saveBtn.addEventListener('click', () => {
+    const customer = shopSelect.value.trim();
+    const area = areaSelect.value.trim();
+    if (!customer || !area || currentItems.length === 0) return;
+    addShopIfMissing(area, customer);
+    const shopInfo = findShop(area, customer);
+    const orders = loadOrders();
+    orders.unshift({
+      id: Date.now(),
+      customer,
+      area,
+      phone: (shopInfo && shopInfo.phone) || '',
+      location: (shopInfo && shopInfo.location) || '',
+      items: currentItems.slice(),
+      date: new Date().toISOString()
+    });
+    saveOrders(orders);
+    sendToWhatsApp(orderToText(orders[0]));
+    showToast('Order saved — opening WhatsApp');
+    currentItems = [];
+    populateAreaSelect('');
+    populateShopSelect('', '');
+    renderItems();
+    renderHistory();
+  });
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' +
+           d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function orderToText(order) {
+    let lines = [`ORDER — ${order.customer}`];
+    if (order.area) lines.push(order.area);
+    if (order.phone) lines.push('Owner: ' + order.phone);
+    if (order.location) lines.push('Location: ' + order.location);
+    lines.push(formatDate(order.date), '');
+    order.items.forEach((it, i) => {
+      lines.push(`${i + 1}. ${it.name} x ${it.qty}`);
+    });
+    lines.push('');
+    lines.push(`Total items: ${order.items.length}`);
+    return lines.join('\n');
+  }
+
+  function renderHistory() {
+    const orders = loadOrders();
+    if (orders.length === 0) {
+      histList.innerHTML = '<div class="empty">No saved orders yet</div>';
+      return;
+    }
+    histList.innerHTML = orders.map(order => `
+      <div class="hist-entry" data-id="${order.id}">
+        <div class="hist-head">
+          <div>
+            <div class="hist-cust">${escapeHtml(order.customer)}</div>
+            ${order.area ? `<div class="hist-date" style="margin-top:2px;">${escapeHtml(order.area)}${order.phone ? ' · ' + escapeHtml(order.phone) : ''}${order.location ? ' · <a href="' + escapeAttr(order.location) + '" target="_blank" rel="noopener noreferrer" style="color:var(--stamp);">map</a>' : ''}</div>` : ''}
+          </div>
+          <div class="hist-date">${formatDate(order.date)}</div>
+        </div>
+        <div class="hist-items">${order.items.map(it => `${escapeHtml(it.name)} × ${it.qty}`).join(', ')}</div>
+        <div class="hist-actions">
+          <button class="chip-btn" data-action="send" data-id="${order.id}">Send</button>
+          <button class="chip-btn" data-action="copy" data-id="${order.id}">Copy text</button>
+          <button class="chip-btn" data-action="repeat" data-id="${order.id}">Repeat order</button>
+          <button class="chip-btn" data-action="delete" data-id="${order.id}">Delete</button>
+        </div>
+      </div>
+    `).join('');
+
+    histList.querySelectorAll('.chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = parseInt(btn.dataset.id, 10);
+        const orders = loadOrders();
+        const order = orders.find(o => o.id === id);
+        if (!order) return;
+        const action = btn.dataset.action;
+        if (action === 'send') {
+          sendToWhatsApp(orderToText(order));
+        } else if (action === 'copy') {
+          const text = orderToText(order);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(
+              () => showToast('Copied to clipboard'),
+              () => showToast('Could not copy')
+            );
+          } else {
+            showToast('Copy not supported here');
+          }
+        } else if (action === 'repeat') {
+          addShopIfMissing(order.area || '', order.customer);
+          populateAreaSelect(order.area || '');
+          populateShopSelect(order.area || '', order.customer);
+          currentItems = order.items.map(it => ({ name: it.name, qty: it.qty }));
+          renderItems();
+          switchTab('new');
+          showToast('Loaded into new order');
+        } else if (action === 'delete') {
+          const remaining = orders.filter(o => o.id !== id);
+          saveOrders(remaining);
+          renderHistory();
+        }
+      });
+    });
+  }
+
+  function switchTab(which) {
+    if (which === 'new') {
+      viewNew.style.display = '';
+      viewHist.style.display = 'none';
+      tabNew.classList.add('active');
+      tabHist.classList.remove('active');
+    } else {
+      viewNew.style.display = 'none';
+      viewHist.style.display = '';
+      tabNew.classList.remove('active');
+      tabHist.classList.add('active');
+      renderHistory();
+    }
+  }
+
+  tabNew.addEventListener('click', () => switchTab('new'));
+  tabHist.addEventListener('click', () => switchTab('hist'));
+
+  renderItems();
+})();
+</script>
+</body>
+</html>
